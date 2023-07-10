@@ -1,0 +1,53 @@
+## Docker et le cloud
+## Il faut rajouter à docker des plugins ou on utilise la notion de CONTEXT 
+## AWS : plugin-ecs (Elastic container service)
+## Azure : plugin-acs (Azure container service)
+##Les liens utiles
+https://github.com/docker/ecs-plugin/blob/master/docs/get-started-linux.md
+
+https://aws.amazon.com/blogs/compute/migrating-your-amazon-ecs-deployment-to-the-new-arn-and-resource-id-format-2/
+
+https://github.com/diranetafen/simple-webapp-docker
+
+https://docs.docker.com/engine/context/working-with-contexts/
+
+#Telecharger le plugin 
+curl -LO https://github.com/docker/ecs-plugin/releases/latest/download/docker-ecs-linux-amd64
+#on donne les droits d'execution sur le dossier
+$ chmod +x docker-ecs-linux-amd64
+# On crée un dossier
+mkdir -p /usr/local/lib/docker/cli-plugins
+#deplacement
+mv docker-ecs-linux-amd64 /usr/local/lib/docker/cli-plugins/docker-ecs 
+#On dit à docker que l'on souhaite faire opération expérimentales
+export DOCKER_CLI_EXPERIMENTAL=enabled
+# verification de l'installation
+docker help | grep ecs
+# Toujours pour verifier 
+docker ecs version
+#pour voir la liste des contextes
+docker context ls
+##On configure un nouveau context ecs 
+docker ecs setup
+# On bascule sur le nouveau context
+docker context use ecs
+#on verigie le basculement si l'asterix change de positionnement
+docker context ls
+
+docker  ecs secret create dockerhubAccessToken –username <dockerhub user> –password <dockerhubtoken>
+
+git clone https://github.com/diranetafen/simple-webapp-docker.git
+
+cd simple-webapp-docker
+
+HUB_PULL_SECRET=$(docker ecs secret ls | grep arn | grep dockerhub | cut -f1 -d' ')
+
+PROD_IMAGE=dirane/simple-webapp-docker:latest
+
+HUB_PULL_SECRET=${HUB_PULL_SECRET} PROD_IMAGE=${PROD_IMAGE} docker ecs  compose -n SimpleWebappDocker up
+
+Pour tout supprimer
+
+HUB_PULL_SECRET=${HUB_PULL_SECRET} PROD_IMAGE=${PROD_IMAGE} docker ecs  compose -n SimpleWebappDocker down
+
+docker ecs secret delete dockerhubAccessToken

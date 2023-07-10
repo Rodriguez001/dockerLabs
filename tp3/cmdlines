@@ -1,0 +1,91 @@
+#Creation de reseau sur docker
+docker network create --driver bridge --subnet 192.168.2.0/24 RodriguezNetwork 
+#Creation de conteneurs ubuntu 1, 2, 3 dans le reseau RodriguezNetwork
+docker run -it --name ubuntu1 --network RodriguezNetwork -d ubuntu /bin/bash 
+#inspection d'un container pour voir les infos comme l'ip
+docker inspect ubuntu1
+#ou alors afficher /etc/hosts
+cat /etc/hosts
+# se connecter sur un conteneur
+docker exec -it ubuntu1 /bin/bash
+#installer les outils pour ping 
+apt-get update && apt-get install iputils-ping
+# tester la liaision
+ping ubuntu2
+ping ubuntu3
+#pour la creation de volume
+docker volume create --name [nom_volume]
+# On va lier le volume à 2 conteneur ubuntu1 et ubuntu2
+docker run --mount type=volume,source=nom_volume,target=url une_image
+docker run -it --name ubuntu1 type=volume,source=/tmp,target=/tmp -d ubuntu /sh
+# ou faire 
+docker run -it --name ubuntu1 -v share:/tmp -d ubuntu /bin/bash
+#Ensuite on se connecte au conteneur
+docker exec -it ubuntu1 /bin/bash
+#Maintenant on va monter un volume de type bind-mount dans une serveur web
+docker run --name webserver -p 80:80 -d -v ${PWD}/static-website-example:/usr/local/apache2/htdocs/ httpd
+# pour le tp5 installation de docker-compose
+curl -SL https://github.com/docker/compose/releases/download/v2.19.1/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+# On crée le fichier docker-compose.yml
+# On lance ensuite 
+docker-compose up
+# Pour le tp6, il faut initialiser un cluster
+#D'abord le noeud master
+docker swarm init --advertise-addr 192.168.56.5
+# Ensuite copier la cmde donnée par le master et l'exécuter sur l'autre vm
+docker swarm join --token SWMTKN-1-1w7pfbwjw5n3wwnv0k55qlsmhzqpwvv37og6wfx1zsclc3gnuv-cw330l95039b6q7q4ffh1p0fi 192.168.56.6:2377
+# On verifie ensuite la liste des noeuds
+docker node ls
+#On lance la creation de la stack
+docker stack deploy -c docker-stack.yml vote-stack #vote-stack = nom de la stack
+#liste les stack
+docker stack ls
+# Voir les differents services et leur repartition chez les noeuds du reseau
+docker stack ps [nom_de_la_stack] # ici c'est vote-stack
+# creation d'une private registry, on commence par le reseau qui va heberger notre registry
+docker network create registryNetwork
+# creation du backend: ici avec une option ou button pour supprimer une image par la suite, 
+docker run -d -p 5000:5000 -e REGISTRY_STORAGE_DELETE_ENABLE=true --net registryNetwork -v `pwd`/config.yml:/etc/docker/registry/config.yml --name registry registry:2
+#creation d'un fichier config.yml
+# On modifie la config en y ajoutant une propriété 
+catalog:
+  maxentries: 100000
+#ou en faisant la creation d'un volume
+docker run -d -p 5000:5000 --restart=always --name registry -v `pwd`/config.yml:/etc/docker/registry/config.yml registry:2
+# on deploie le frontend
+docker run -d -p 8090:80 --net registryNetwork -e REGISTRY_URL=http://registry:5000 -e DELETE_IMAGES=true -e REGISTRY_TITLE=rodriguetraining --name registry-frontend joxit/docker-registry-ui:static
+# Ensuite on recupere une image sur le dockerhub
+docker pull nginx
+#On tagge d'abord l'image et on push sur le registre privée (local)
+docker tag image_id localhost:5000/nginx:local 
+docker push localhost:5000/nginx:local
+# Build multistage
+# On bulid la partie test voir si tout va bien 
+docker build --target test --tag test .
+#On bulid la partie prod (l'image de prod)
+docker build --target prod --tag prod .
+# pour verifier les vulnérabilités sur notre code avant d'envoyer notre image en prod:
+git clone https://github.com/eazytrainingfr/simple-webapp-docker.git
+cd simple-webapp-docker/
+ls
+cd app/
+export SNYK_TOKEN=<ON_met_son_token_pris_sur_snk.io>
+#pour verifier la qualité des pre-requis ou des dépendances
+docker run --rm -it --env SNYK_TOKEN -v $(pwd):/app snyk/snyk:python-2.7
+# Ensuite pour verifier la qualité de l'image: ici on build d'abord l'image 
+docker build -t simple-webapp-docker .
+docker run --rm -it -env SNYK_TOKEN -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):/app snyk/snyk:docker snyk test --docker simple-webapp-docker --file=Dockerfile
+
+
+
+
+
+
+
+
+
+
+
+
+
+
