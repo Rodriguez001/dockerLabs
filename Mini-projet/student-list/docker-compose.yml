@@ -11,10 +11,18 @@ services:
       - api
     ports:
       - 80:80
+    networks:
+      - frontend
 
   api:
-    image: api-image:1.
+    image: api-image:1.0
     volumes:
       - ./simple_api/student_age.json:/data/student_age.json
     ports:
       - 5000:5000
+    networks:
+      - backend
+
+networks:
+  frontend:
+  backend:
